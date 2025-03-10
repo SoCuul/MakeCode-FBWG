@@ -1,0 +1,41 @@
+{
+    "editor.formatOnType": true,
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/built/**": true,
+        "**/node_modules/**": true,
+        "**/yotta_modules/**": true,
+        "**/yotta_targets": true,
+        "**/pxt_modules/**": true,
+        "**/.pxt/**": true
+    },
+    "files.associations": {
+        "*.blocks": "html",
+        "*.jres": "json"
+    },
+    "search.exclude": {
+        "**/built": true,
+        "**/node_modules": true,
+        "**/yotta_modules": true,
+        "**/yotta_targets": true,
+        "**/pxt_modules": true,
+        "**/.pxt": true,
+        "**/assets.json": true,
+        "**/images.g.jres": true,
+        "**/images.g.ts": true,
+        "**/tilemap.g.jres": true,
+        "**/tilemap.g.ts": true
+    },
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/pxt_modules": true,
+        "**/.pxt": true,
+        "**/mkc.json": true,
+        "**/.github": true,
+        "**/.prettierrc": true,
+        "**/tsconfig.json": true,
+        "**/assets.json": true,
+    },
+    "makecode.simulatorBuildWatcherDebounce": 0,
+    "makecode.showCompileNotification": false
+}

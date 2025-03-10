@@ -1,0 +1,36 @@
+{
+    "name": "FBWG",
+    "description": "",
+    "dependencies": {
+        "device": "*"
+    },
+    "files": [
+        "main.ts",
+        "players.ts",
+        "README.md",
+        "assets.json",
+        "tilemap.g.jres",
+        "tilemap.g.ts",
+        "images.g.jres",
+        "images.g.ts"
+    ],
+    "preferredEditor": "tsprj",
+    "palette": [
+        "#000000",
+        "#000000",
+        "#FFFFFF",
+        "#72683A",
+        "#605932",
+        "#2C2E10",
+        "#212305",
+        "#D71E26",
+        "#00CAF9",
+        "#02EA37",
+        "#DFB43A",
+        "#FAFC4C",
+        "#B5B735",
+        "#EF0FEB",
+        "#A50BA2",
+        "#B1B1B1"
+    ]
+}
