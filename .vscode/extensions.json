@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "ms-edu.pxt-vscode-web"
-    ]
+        "ms-edu.pxt-vscode-web",
+        "mxsdev.typescript-explorer"
+    ],
 }
