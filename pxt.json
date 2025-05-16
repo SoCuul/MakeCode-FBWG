@@ -6,7 +6,6 @@
     },
     "files": [
         "main.ts",
-        "players.ts",
         "README.md",
         "assets.json",
         "tilemap.g.jres",
