@@ -35,7 +35,8 @@
         "**/.prettierrc": true,
         "**/tsconfig.json": true,
         "**/assets.json": true,
+        "**/*.g.ts": true
     },
     "makecode.simulatorBuildWatcherDebounce": 0,
-    "makecode.showCompileNotification": false
+    "makecode.showCompileNotification": false,
 }

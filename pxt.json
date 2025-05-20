@@ -2,7 +2,8 @@
     "name": "FBWG",
     "description": "",
     "dependencies": {
-        "device": "*"
+        "device": "*",
+        "browser-events": "*"
     },
     "files": [
         "main.ts",
@@ -22,7 +23,7 @@
         "#605932",
         "#2C2E10",
         "#212305",
-        "#D71E26",
+        "#f31813",
         "#00CAF9",
         "#02EA37",
         "#DFB43A",
