@@ -354,12 +354,6 @@ game.onUpdate(() => {
     })
 })
 
-sprites.onOverlap(SpriteKind.Player, SpriteKind.Platform, (playerSprite, platformSprite) => {
-    game.gameOver(false)
-    console.log(`${playerSprite.bottom} >= ${platformSprite.top}`)
-    if (playerSprite.bottom >= platformSprite.top) playerSprite.y = platformSprite.top
-})
-
 // * Debug
 browserEvents.MouseLeft.addEventListener(browserEvents.MouseButtonEvent.Pressed, (x, y) => fireboy.setPosition(x, y))
 browserEvents.MouseRight.addEventListener(browserEvents.MouseButtonEvent.Pressed, (x, y) => watergirl.setPosition(x, y))
