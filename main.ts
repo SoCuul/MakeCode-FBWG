@@ -1,6 +1,3 @@
-// Level setup
-tiles.setCurrentTilemap(tilemap`level1`)
-
 // Camera setup
 namespace userconfig {
     export const ARCADE_SCREEN_WIDTH = 39 * 16
@@ -28,11 +25,13 @@ namespace player {
         down: browserEvents.KeyButton
     ) {
         right.addEventListener(browserEvents.KeyEvent.Pressed, () => {
-            sprite.vx = 100
+            sprite.vx = 110
+
+            startedMoving(sprite)
         })
         right.addEventListener(browserEvents.KeyEvent.Repeat, () => {
             if (!left.isPressed()) {
-                sprite.vx = 100
+                sprite.vx = 110
             }
         })
         right.addEventListener(browserEvents.KeyEvent.Released, () => {
@@ -41,11 +40,13 @@ namespace player {
             }
         })
         left.addEventListener(browserEvents.KeyEvent.Pressed, () => {
-            sprite.vx = -100
+            sprite.vx = -110
+
+            startedMoving(sprite)
         })
         left.addEventListener(browserEvents.KeyEvent.Repeat, () => {
             if (!right.isPressed()) {
-                sprite.vx = -100
+                sprite.vx = -110
             }
         })
         left.addEventListener(browserEvents.KeyEvent.Released, () => {
@@ -57,6 +58,8 @@ namespace player {
             if (sprite.isHittingTile(CollisionDirection.Bottom)) {
                 sprite.vy -= 185
             }
+
+            startedMoving(sprite)
         })
         down.addEventListener(browserEvents.KeyEvent.Pressed, () => {
             // Toggle lever switch
@@ -73,6 +76,22 @@ namespace player {
                 }
             })
         })
+    }
+
+    let spritesMoved: { [key: number]: boolean } = {}
+    let allSpritesMoved = false
+
+    function startedMoving(sprite: Sprite) {
+        if (allSpritesMoved) return
+
+        spritesMoved[sprite.kind()] = true
+
+        // Check if both sprites have moved so far
+        if (Object.keys(spritesMoved).length >= 2) {
+            allSpritesMoved = true
+
+            Zoom.zoomToOffset(1, 0, screen.height, 1750)
+        }
     }
 
     export function createFireboy (location: tiles.Location): Sprite {
@@ -323,17 +342,13 @@ game.onUpdate(() => {
                 platform.vy = 0
                 platform.setFlag(SpriteFlag.Ghost, true)
 
-                // Set platform walls
+                // Set walls in place of platform
                 instance.getWalls().forEach(platformWalls => {
                     platformWalls.forEach(wall => tiles.setWallAt(wall, true))
                 })
 
                 // Stop moving players
-                const playerSprites = [fireboy, watergirl]
-
-                playerSprites.forEach(playerSprite => {
-                    playerSprite.ay = 300
-                })
+                
             }
 
             // Move player alongside platform
@@ -342,10 +357,8 @@ game.onUpdate(() => {
     
                 playerSprites.forEach(playerSprite => {
                     if (platform.overlapsWith(playerSprite)) {
-                        playerSprite.ay = 0
                         playerSprite.y = platform.y - 30
                         playerSprite.vy = platform.vy
-                        playerSprite.vx = platform.vx
                     }
                 })
             }
@@ -359,6 +372,8 @@ browserEvents.MouseLeft.addEventListener(browserEvents.MouseButtonEvent.Pressed,
 browserEvents.MouseRight.addEventListener(browserEvents.MouseButtonEvent.Pressed, (x, y) => watergirl.setPosition(x, y))
 
 // Level setup
+tiles.setCurrentTilemap(tilemap`level1`)
+
 liquid.create(tiles.getTileLocation(20, 27), { killsWatergirl: true })
 liquid.create(tiles.getTileLocation(28, 27), { killsFireboy: true })
 liquid.create(tiles.getTileLocation(26, 21), { killsFireboy: true, killsWatergirl: true })
@@ -383,7 +398,14 @@ purpleMover.createButton(tiles.getTileLocation(30, 10))
 const fireboy = player.createFireboy(tiles.getTileLocation(2, 26))
 const watergirl = player.createWatergirl(tiles.getTileLocation(2, 22))
 
-/* scene.onOverlapTile() */
+// Zoom into level
+Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
+pause(750)
+Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
+pause(500)
+if (!controller.A.isPressed()) {
+    Zoom.zoomToOffset(3, 0, screen.height, 1250)
+}
 
 // Music
 music.stopAllSounds()
