@@ -3,10 +3,12 @@
     "description": "",
     "dependencies": {
         "device": "*",
-        "browser-events": "*"
+        "browser-events": "*",
+        "arcade-fancy-text": "github:riknoll/arcade-fancy-text#v0.1.2"
     },
     "files": [
         "main.ts",
+        "anim.ts",
         "zoom.ts",
         "README.md",
         "assets.json",

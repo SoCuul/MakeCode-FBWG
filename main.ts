@@ -18,9 +18,54 @@ namespace SpriteKind {
     export const Platform = SpriteKind.create()
     export const Lever = SpriteKind.create()
     export const Button = SpriteKind.create()
+
+    export const Door = SpriteKind.create()
+    export const DoorSensor = SpriteKind.create()
+
+    export const WatergirlGuideText = SpriteKind.create()
+    export const FireboyGuideText = SpriteKind.create()
+}
+
+namespace timer {
+    const frameSprite = sprites.create(assets.image`timer_frame`)
+    frameSprite.setScale(1.675)
+    frameSprite.setPosition(screen.width / 2, 28)
+
+    const timerSpriteOutline = fancyText.create('00:00', null, 3, fancyText.gothic_large)
+    const timerSprite = fancyText.create('00:00', null, 10, fancyText.gothic_large)
+
+    timerSprite.setPosition(screen.width / 2, 20)
+    
+    timerSpriteOutline.setPosition(timerSprite.x, timerSprite.y)
+    timerSpriteOutline.x += 2
+    timerSpriteOutline.y += 2
+
+    let startedTimer = false
+    let timerOffset = 0
+
+    game.onUpdateInterval(1000, () => {
+        if (!player.movementEnabled || !player.allSpritesMoved) return
+
+        if (!startedTimer) {
+            startedTimer = true
+            timerOffset = game.runtime()
+        }
+
+        const secs = (game.runtime() - timerOffset) / 1000
+
+        const timerSecs = Math.floor(secs % 60)
+        const timerMins = Math.floor(secs / 60)
+
+        const timerText = `${timerMins.toString().length < 2 ? '0' : ''}${timerMins.toString()}:${timerSecs.toString().length < 2 ? '0' : ''}${timerSecs.toString()}`
+
+        timerSprite.setText(timerText)
+        timerSpriteOutline.setText(timerText)
+    })
 }
 
 namespace player {
+    export let movementEnabled = false
+
     function spriteMovement(
         sprite: Sprite,
         left: browserEvents.KeyButton,
@@ -29,73 +74,101 @@ namespace player {
         down: browserEvents.KeyButton
     ) {
         right.addEventListener(browserEvents.KeyEvent.Pressed, () => {
-            sprite.vx = 110
+            if (movementEnabled) {
+                sprite.vx = 110
 
-            startedMoving(sprite)
+                startedMoving(sprite)
+            }
         })
         right.addEventListener(browserEvents.KeyEvent.Repeat, () => {
-            if (!left.isPressed()) {
-                sprite.vx = 110
+            if (movementEnabled) {
+                if (!left.isPressed()) {
+                    sprite.vx = 110
+                }
             }
         })
         right.addEventListener(browserEvents.KeyEvent.Released, () => {
-            if (!left.isPressed()) {
-                sprite.vx = 0
+            if (movementEnabled) {
+                if (!left.isPressed()) {
+                    sprite.vx = 0
+                }
             }
         })
         left.addEventListener(browserEvents.KeyEvent.Pressed, () => {
-            sprite.vx = -110
+            if (movementEnabled) {
+                sprite.vx = -110
 
-            startedMoving(sprite)
+                startedMoving(sprite)
+            }
         })
         left.addEventListener(browserEvents.KeyEvent.Repeat, () => {
-            if (!right.isPressed()) {
-                sprite.vx = -110
+            if (movementEnabled) {
+                if (!right.isPressed()) {
+                    sprite.vx = -110
+                }
             }
         })
         left.addEventListener(browserEvents.KeyEvent.Released, () => {
-            if (!right.isPressed()) {
-                sprite.vx = 0
+            if (movementEnabled) {
+                if (!right.isPressed()) {
+                    sprite.vx = 0
+                }
             }
         })
         up.onEvent(browserEvents.KeyEvent.Pressed, () => {
-            if (sprite.isHittingTile(CollisionDirection.Bottom)) {
-                sprite.vy -= 185
-            }
+            if (movementEnabled) {
+                if (sprite.isHittingTile(CollisionDirection.Bottom)) {
+                    sprite.vy -= 185
+                }
 
-            startedMoving(sprite)
+                startedMoving(sprite)
+            }
         })
         down.addEventListener(browserEvents.KeyEvent.Pressed, () => {
-            // Toggle lever switch
-            mover.instances.forEach(instance => {
-                instance.levers.forEach(lever => {
-                    if (
-                        (lever.overlapsWith(fireboy) && sprite.kind() === SpriteKind.Fireboy)
-                        || (lever.overlapsWith(watergirl) && sprite.kind() === SpriteKind.Watergirl)
-                    ) {
-                        // Update lever state
-                        lever.data = lever.data === true ? false : true
-                    }
-
-                    instance.triggerUpdate()
+            if (movementEnabled) {
+                // Toggle lever switch
+                mover.instances.forEach(instance => {
+                    instance.levers.forEach(lever => {
+                        if (
+                            (lever.overlapsWith(fireboy) && sprite.kind() === SpriteKind.Fireboy)
+                            || (lever.overlapsWith(watergirl) && sprite.kind() === SpriteKind.Watergirl)
+                        ) {
+                            // Update lever state
+                            lever.data = {
+                                active: !lever.data.active
+                            } as mover.LeverData
+                        }
+    
+                        instance.triggerUpdate()
+                    })
                 })
-            })
+            }
         })
     }
 
     let spritesMoved: { [key: number]: boolean } = {}
-    let allSpritesMoved = false
+    export let allSpritesMoved = false
 
     function startedMoving(sprite: Sprite) {
         if (allSpritesMoved) return
 
         spritesMoved[sprite.kind()] = true
 
+        // Remove guide text
+        if (sprite.kind() === SpriteKind.Watergirl) {
+            sprites.allOfKind(SpriteKind.WatergirlGuideText)
+                .forEach(sprite => sprite.destroy(effects.coolRadial, 175))
+        }
+        else if (sprite.kind() === SpriteKind.Fireboy) {
+            sprites.allOfKind(SpriteKind.FireboyGuideText)
+                .forEach(sprite => sprite.destroy(effects.warmRadial, 175))
+        }
+
         // Check if both sprites have moved so far
         if (Object.keys(spritesMoved).length >= 2) {
             allSpritesMoved = true
 
-            Zoom.zoomToOffset(1, 0, screen.height, 1750)
+            Zoom.zoomToOffset(1, 0, screen.height, 1375)
         }
     }
 
@@ -107,6 +180,17 @@ namespace player {
         tiles.placeOnTile(fireboy, location)
         spriteMovement(fireboy, browserEvents.ArrowLeft, browserEvents.ArrowRight, browserEvents.ArrowUp, browserEvents.ArrowDown)
 
+        // Guide text
+        const fireboyGoldGuideText = fancyText.create('TO MOVE FireBoy', null, 10, fancyText.geometric_serif_11)
+        fireboyGoldGuideText.setLineHeight(20)
+        fireboyGoldGuideText.setPosition(130, screen.height - 50)
+        fireboyGoldGuideText.setKind(SpriteKind.FireboyGuideText)
+        
+        const fireboyBlueGuideText = fancyText.create('Left,Up,Right,Down', null, 8, fancyText.geometric_serif_11)
+        fireboyBlueGuideText.setLineHeight(20)
+        fireboyBlueGuideText.setPosition(130, screen.height - 30)
+        fireboyBlueGuideText.setKind(SpriteKind.FireboyGuideText)
+
         return fireboy
     }
 
@@ -117,6 +201,22 @@ namespace player {
         
         tiles.placeOnTile(watergirl, location)
         spriteMovement(watergirl, browserEvents.A, browserEvents.D, browserEvents.W, browserEvents.S)
+
+        // Guide text
+        const watergirlGoldGuideText = fancyText.create('USE A,W,D,S TO', null, 10, fancyText.geometric_serif_11)
+        watergirlGoldGuideText.setLineHeight(20)
+        watergirlGoldGuideText.setPosition(130, screen.height - 113)
+        watergirlGoldGuideText.setKind(SpriteKind.WatergirlGuideText)
+
+        const watergirlGoldGuideText2 = fancyText.create('MOVE WaterGirl...', null, 10, fancyText.geometric_serif_11)
+        watergirlGoldGuideText2.setLineHeight(20)
+        watergirlGoldGuideText2.setPosition(130, screen.height - 93)
+        watergirlGoldGuideText2.setKind(SpriteKind.WatergirlGuideText)
+        
+        const watergirlBlueGuideText = fancyText.create('A,W,D,S', null, 8, fancyText.geometric_serif_11)
+        watergirlBlueGuideText.setLineHeight(20)
+        watergirlBlueGuideText.setPosition(134, screen.height - 113)
+        watergirlBlueGuideText.setKind(SpriteKind.WatergirlGuideText)
 
         return watergirl
     } 
@@ -277,6 +377,10 @@ namespace block {
 }
 
 namespace mover {    
+    export type LeverData = {
+        active: boolean
+    }
+
     export const instances: Mover[] = []
 
     export class Mover {
@@ -286,7 +390,7 @@ namespace mover {
             protected readonly activeColor: color,
             protected readonly inactiveColor: color
         ) {
-            // Add to created platforms
+            // Add to created instances
             instances.push(this)
         }
 
@@ -297,7 +401,9 @@ namespace mover {
         public buttons: Sprite[] = []
 
         /** Generates the specific image to apply to sprite */
-        getImage (type: 'platform' | 'lever' | 'button'): Image {
+        getImage (type: 'platform' | 'lever' | 'button', active?: boolean): Image {
+            let imageActive = (active !== undefined) ? active : this.active
+            
             let img: Image
             
             // Get base image for sprite
@@ -306,19 +412,19 @@ namespace mover {
                     img = assets.image`platform`
                     break
                 case 'lever':
-                    img = this.active ? assets.image`lever_active` : assets.image`lever`
+                    img = imageActive ? assets.image`lever_active` : assets.image`lever`
                     break
                 case 'button':
                     img = assets.image`button`
                     break
             }
-
+            
             // Replace conditional colour (inactive/active)
-            img.replace(8, this.active ? this.activeColor : this.inactiveColor)
-
+            img.replace(8, imageActive ? this.activeColor : this.inactiveColor)
+            
             // Replace active colour (always active)
             img.replace(7, this.activeColor)
-
+            
             return img
         }
 
@@ -344,7 +450,7 @@ namespace mover {
             // Triggers
             const buttonOverlap = this.buttons.some(button => button.overlapsWith(fireboy) || button.overlapsWith(watergirl))
 
-            if (buttonOverlap || this.levers.some(lever => lever.data === true)) {
+            if (buttonOverlap || this.levers.some(lever => lever.data.active === true)) {
                 this.setActive(true)
             }
             else {
@@ -357,13 +463,12 @@ namespace mover {
 
             // Update sprite images
             this.platforms.forEach(platform => platform.setImage(this.getImage('platform')))
-            this.levers.forEach(lever => lever.setImage(this.getImage('lever')))
+            this.levers.forEach(lever => lever.setImage(this.getImage('lever', lever.data.active)))
             this.buttons.forEach(button => button.setImage(this.getImage('button')))
 
             // Set platform velocity & ghost
             this.platforms.forEach(platform => {
                 platform.vy = this.movementSpeed * (state ? 1 : -1)
-                platform.setFlag(SpriteFlag.Ghost, false)
                 platform.setFlag(SpriteFlag.Ghost, false)
             })
 
@@ -386,7 +491,9 @@ namespace mover {
 
         createLever(location: tiles.Location) {
             const leverSprite = sprites.create(this.getImage('lever'), SpriteKind.Lever)
-            leverSprite.data = false
+            leverSprite.data = {
+                active: false
+            } as LeverData
 
             tiles.placeOnTile(leverSprite, location)
 
@@ -405,6 +512,109 @@ namespace mover {
             return buttonSprite
         }
     } 
+}
+
+namespace door {
+    export type DoorType = 'fireboy' | 'watergirl'
+    export type DoorData = {
+        type: DoorType
+    }
+
+    export const instances: Door[] = []
+
+    export class Door {
+        constructor(
+            public readonly location: tiles.Location,
+            public readonly type: DoorType
+        ) {
+            // Add to created instances
+            instances.push(this)
+
+            this.createDoor(location, type)
+        }
+
+        // Class properties
+        public doorSprite: Sprite
+        public sensorSprite: Sprite
+
+        public opened = false
+        public animating = false
+
+        createDoor (location: tiles.Location, type: DoorType) {
+            const doorSprite = sprites.create(image.create(48, 48), SpriteKind.Door)
+            doorSprite.data = {
+                type: type
+            } as DoorData
+            
+            switch (type) {
+                case 'fireboy':
+                    doorSprite.setImage(assets.image`fireboy_door`)
+                    break
+                case 'watergirl':
+                    doorSprite.setImage(assets.image`watergirl_door`)
+                    break
+            }
+            
+            tiles.placeOnTile(doorSprite, location)
+            
+            // Create player sensor
+            this.createSensor(tiles.getTileLocation(location.col, location.row + 1), type)
+    
+            this.doorSprite = doorSprite
+
+            return this.doorSprite
+        }
+    
+        createSensor (location: tiles.Location, type: DoorType) {
+            const sensorSprite = sprites.create(assets.image`door_sensor`, SpriteKind.DoorSensor)
+            sensorSprite.setFlag(SpriteFlag.Invisible, true)
+    
+            sensorSprite.data = {
+                type: type
+            } as DoorData
+    
+            tiles.placeOnTile(sensorSprite, location)
+            
+            this.sensorSprite = sensorSprite
+
+            return this.sensorSprite
+        }
+
+        overlapStatus () {
+            return playerSprites.some(playerSprite => this.sensorSprite.overlapsWith(playerSprite))
+        }
+
+        handleAnim (overlap: boolean) {
+            // Continue ongoing animation
+            if (overlap === this.opened || this.animating) return
+
+            console.log(overlap)
+            this.opened = overlap
+            this.animating = true
+
+            let frames: Image[]
+
+            switch (this.type) {
+                case 'fireboy':
+                    frames = animSeq.fireboy_door.slice()
+                    break
+                
+                case 'watergirl':
+                    frames = animSeq.watergirl_door.slice()
+                    break
+            }
+
+            if (!overlap) frames.reverse()
+
+            animation.stopAnimation(animation.AnimationTypes.ImageAnimation, this.doorSprite)
+            animation.runImageAnimation(this.doorSprite, frames, 55)
+
+            control.runInParallel(() => {
+                pause(55 * frames.length)
+                this.animating = false
+            })
+        }
+    }
 }
 
 game.onUpdate(() => {
@@ -427,8 +637,6 @@ game.onUpdate(() => {
 
             // Move player alongside platform
             if (!hitBoundary) {
-                const playerSprites = [fireboy, watergirl]
-    
                 playerSprites.forEach(playerSprite => {
                     if (platform.overlapsWith(playerSprite)) {
                         playerSprite.y = platform.y - 30
@@ -437,7 +645,71 @@ game.onUpdate(() => {
                 })
             }
         })
+    })
 
+    // Doors
+    door.instances.forEach(instance => {
+        const activatedDoor = playerSprites.some(playerSprite => {
+            if (instance.sensorSprite.overlapsWith(playerSprite)) {
+                if (
+                    (instance.type === 'fireboy' && playerSprite.kind() === SpriteKind.Fireboy)
+                    || (instance.type === 'watergirl' && playerSprite.kind() === SpriteKind.Watergirl)
+                ) {
+                    return true
+                }
+                
+                return false
+            }
+            
+            return false
+        })
+
+        instance.handleAnim(activatedDoor)
+    })
+
+    // Level completion
+    if (door.instances.every(instance => instance.opened && !instance.animating && instance.overlapStatus())) {
+        player.movementEnabled = false
+
+        const fireboyDoor = door.instances.find(instance => instance.type === 'fireboy').sensorSprite
+        const watergirlDoor = door.instances.find(instance => instance.type === 'watergirl').sensorSprite
+
+        tiles.placeOnTile(fireboy, tiles.getTileLocation(fireboyDoor.tilemapLocation().col, fireboyDoor.tilemapLocation().row - 1))
+        tiles.placeOnTile(watergirl, tiles.getTileLocation(watergirlDoor.tilemapLocation().col, fireboyDoor.tilemapLocation().row - 1))
+
+        playerSprites.forEach(playerSprite => {
+            playerSprite.ay = 0
+            playerSprite.setVelocity(0, 0)
+            
+            control.runInParallel(() => {
+                for (let i = 0; i < 10; i++) {
+                    playerSprite.changeScale(-0.1)
+                    playerSprite.y += 5
+                    pause(200)
+                }
+            })
+        })
+
+        control.runInParallel(() => {
+            pauseUntil(() => door.instances.every(instance => !instance.opened && !instance.animating))
+            game.gameOver(true)
+        })
+    }
+
+    // Slopes
+    playerSprites.forEach(playerSprite => {
+        if (playerSprite.tileKindAt(TileDirection.Bottom, assets.tile`down_slope1`)) {
+            playerSprite.x -= 16
+            playerSprite.y -= 16
+        }
+        else if (playerSprite.tileKindAt(TileDirection.Bottom, assets.tile`down_slope2`)) {
+            playerSprite.x -= 16
+            playerSprite.y -= 16
+        }
+        else if (playerSprite.tileKindAt(TileDirection.Bottom, assets.tile`up_slope`)) {
+            playerSprite.x += 16
+            playerSprite.y -= 16
+        }
     })
 })
 
@@ -475,17 +747,12 @@ purpleMover.createPlatform(tiles.getTileLocation(36, 12))
 purpleMover.createButton(tiles.getTileLocation(10, 14))
 purpleMover.createButton(tiles.getTileLocation(30, 10))
 
+new door.Door(tiles.getTileLocation(32, 4), 'fireboy')
+new door.Door(tiles.getTileLocation(36, 4), 'watergirl')
+
 const fireboy = player.createFireboy(tiles.getTileLocation(2, 26))
 const watergirl = player.createWatergirl(tiles.getTileLocation(2, 22))
-
-// Zoom into level
-// Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
-// pause(750)
-// Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
-// pause(500)
-// if (!controller.A.isPressed()) {
-//     Zoom.zoomToOffset(3, 0, screen.height, 1250)
-// }
+const playerSprites = [fireboy, watergirl]
 
 // Music
 music.stopAllSounds()
@@ -502,3 +769,13 @@ controller.B.onEvent(ControllerButtonEvent.Pressed, () => {
         music.play(music.createSong(assets.song`levelTheme`), music.PlaybackMode.LoopingInBackground)
     }
 })
+
+// Zoom into level
+// Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
+// pause(750)
+// Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
+// pause(500)
+if (!controller.A.isPressed()) {
+    Zoom.zoomToOffset(3, 0, screen.height, 1250)
+}
+player.movementEnabled = true
