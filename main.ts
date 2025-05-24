@@ -11,6 +11,10 @@ namespace SpriteKind {
     export const Liquid = SpriteKind.create()
     export const Diamond = SpriteKind.create()
 
+    export const Block = SpriteKind.create()
+    export const BlockBoundary = SpriteKind.create()
+    export const BlockDest = SpriteKind.create()
+
     export const Platform = SpriteKind.create()
     export const Lever = SpriteKind.create()
     export const Button = SpriteKind.create()
@@ -64,16 +68,17 @@ namespace player {
         down.addEventListener(browserEvents.KeyEvent.Pressed, () => {
             // Toggle lever switch
             mover.instances.forEach(instance => {
-                if (instance.activationType === 'lever') {
-                    const leverToggle = instance.levers.some(lever =>
+                instance.levers.forEach(lever => {
+                    if (
                         (lever.overlapsWith(fireboy) && sprite.kind() === SpriteKind.Fireboy)
                         || (lever.overlapsWith(watergirl) && sprite.kind() === SpriteKind.Watergirl)
-                    )
-
-                    if (leverToggle) {
-                        instance.setActive(!instance.active)
+                    ) {
+                        // Update lever state
+                        lever.data = lever.data === true ? false : true
                     }
-                }
+
+                    instance.triggerUpdate()
+                })
             })
         })
     }
@@ -198,13 +203,85 @@ namespace diamond {
     sprites.onOverlap(SpriteKind.Watergirl, SpriteKind.Diamond, playerCollision)
 }
 
+namespace block {
+    export function create (location: tiles.Location, destinations: tiles.Location[], boundaries: tiles.Location[], hideCollider = true) {
+        const blockSprite = sprites.create(assets.image`block`, SpriteKind.Block)
+        blockSprite.ay = 1000
+        
+        tiles.placeOnTile(blockSprite, location)
+        
+        // Create block boundaries & destinations
+        boundaries.forEach(boundary => createBoundary(boundary, hideCollider))
+        destinations.forEach(dest => createDestination(dest, hideCollider))
+
+        return blockSprite
+    }
+
+    function createBoundary (location: tiles.Location, hideCollider = true) {
+        const boundarySprite = sprites.create(assets.image`block_boundary`, SpriteKind.BlockBoundary)
+        boundarySprite.setFlag(SpriteFlag.Invisible, hideCollider)
+        
+        tiles.placeOnTile(boundarySprite, location)
+        
+        return boundarySprite
+    }
+    
+    function createDestination (location: tiles.Location, hideCollider = true) {
+        const destSprite = sprites.create(assets.image`block_boundary`, SpriteKind.BlockDest)
+        destSprite.setFlag(SpriteFlag.Invisible, hideCollider)
+
+        tiles.placeOnTile(destSprite, location)
+
+        return destSprite
+    }
+
+    function playerCollision(playerSprite: Sprite, blockSprite: Sprite) {
+        const blockX = blockSprite.x
+        const blockY = blockSprite.y
+
+        // Push block
+        if (playerSprite.right <= (blockSprite.left + 17)) {
+            blockSprite.setPosition(blockX + 5, blockY)
+        }
+        else if (playerSprite.left <= (blockSprite.right - 17)) {
+            blockSprite.setPosition(blockX - 5, blockY)
+        }
+
+        // Overlaps with boundary
+        if (sprites.allOfKind(SpriteKind.BlockBoundary).some(sprite => sprite.overlapsWith(blockSprite))) {
+            blockSprite.setPosition(blockX, blockY)
+        }
+
+        // Overlaps with destination
+        else if (sprites.allOfKind(SpriteKind.BlockDest).some(sprite => sprite.overlapsWith(blockSprite))) {
+            blockSprite.setPosition(blockX, blockY)
+            blockSprite.setFlag(SpriteFlag.GhostThroughSprites, true)
+
+            blockSprite.ay = 0
+            blockSprite.vy = 0
+            
+            const blockLocation = blockSprite.tilemapLocation()
+
+            const blockWalls = [
+                blockLocation,
+                tiles.getTileLocation(blockLocation.col - 1, blockLocation.row),
+                tiles.getTileLocation(blockLocation.col, blockLocation.row - 1),
+                tiles.getTileLocation(blockLocation.col - 1, blockLocation.row - 1)
+            ]
+            blockWalls.forEach(wall => tiles.setWallAt(wall, true))
+        }
+    }
+
+    sprites.onOverlap(SpriteKind.Fireboy, SpriteKind.Block, playerCollision)
+    sprites.onOverlap(SpriteKind.Watergirl, SpriteKind.Block, playerCollision)
+}
+
 namespace mover {    
     export const instances: Mover[] = []
 
     export class Mover {
         constructor (
             public readonly id: string,
-            public readonly activationType: 'lever' | 'button',
             public readonly movementSpeed: number,
             protected readonly activeColor: color,
             protected readonly inactiveColor: color
@@ -245,9 +322,9 @@ namespace mover {
             return img
         }
 
-        /** Gets the tilemap positions of the walls when stationary */
-        getWalls (): tiles.Location[][] {
-            return this.platforms.map(platform => {
+        /** Sets the tilemap positions of the stationary platform walls */
+        setWalls (enabled: boolean) {
+            const walls = this.platforms.map(platform => {
                 const platformLocation = platform.tilemapLocation()
 
                 return [
@@ -257,6 +334,22 @@ namespace mover {
                     tiles.getTileLocation(platformLocation.col + 1, platformLocation.row)
                 ]
             })
+            
+            walls.forEach(platformWalls => {
+                platformWalls.forEach(wall => tiles.setWallAt(wall, enabled))
+            })
+        }
+
+        triggerUpdate () {
+            // Triggers
+            const buttonOverlap = this.buttons.some(button => button.overlapsWith(fireboy) || button.overlapsWith(watergirl))
+
+            if (buttonOverlap || this.levers.some(lever => lever.data === true)) {
+                this.setActive(true)
+            }
+            else {
+                this.setActive(false)
+            }
         }
 
         setActive (state: boolean) {
@@ -271,16 +364,15 @@ namespace mover {
             this.platforms.forEach(platform => {
                 platform.vy = this.movementSpeed * (state ? 1 : -1)
                 platform.setFlag(SpriteFlag.Ghost, false)
+                platform.setFlag(SpriteFlag.Ghost, false)
             })
 
-            // Set platform walls
-            this.getWalls().forEach(platformWalls => {
-                platformWalls.forEach(wall => tiles.setWallAt(wall, false))
-            })
+            this.setWalls(false)
         }
 
         createPlatform (location: tiles.Location) {
             const platformSprite = sprites.create(this.getImage('platform'), SpriteKind.Platform)
+            platformSprite.setFlag(SpriteFlag.Ghost, true)
             
             tiles.placeOnTile(platformSprite, location)
 
@@ -293,9 +385,8 @@ namespace mover {
         }
 
         createLever(location: tiles.Location) {
-            if (this.activationType !== 'lever') throw 'Unable to create lever as activation type is incompatible'
-
             const leverSprite = sprites.create(this.getImage('lever'), SpriteKind.Lever)
+            leverSprite.data = false
 
             tiles.placeOnTile(leverSprite, location)
 
@@ -305,8 +396,6 @@ namespace mover {
         }
 
         createButton(location: tiles.Location) {
-            if (this.activationType !== 'button') throw 'Unable to create lever as activation type is incompatible'
-
             const buttonSprite = sprites.create(this.getImage('button'), SpriteKind.Button)
 
             tiles.placeOnTile(buttonSprite, location)
@@ -321,17 +410,7 @@ namespace mover {
 game.onUpdate(() => {
     // Moving platforms
     mover.instances.forEach(instance => {
-        // Button (momentary)
-        if (instance.activationType === 'button') {
-            const buttonOverlap = instance.buttons.some(button => button.overlapsWith(fireboy) || button.overlapsWith(watergirl))
-
-            if (buttonOverlap) {
-                instance.setActive(true)
-            }
-            else {
-                instance.setActive(false)
-            }
-        }
+        instance.triggerUpdate()
 
         instance.platforms.forEach(platform => {
             // Stop platforms at their boundary (either top or bottom)
@@ -343,12 +422,7 @@ game.onUpdate(() => {
                 platform.setFlag(SpriteFlag.Ghost, true)
 
                 // Set walls in place of platform
-                instance.getWalls().forEach(platformWalls => {
-                    platformWalls.forEach(wall => tiles.setWallAt(wall, true))
-                })
-
-                // Stop moving players
-                
+                instance.setWalls(true)
             }
 
             // Move player alongside platform
@@ -386,11 +460,17 @@ diamond.create(tiles.getTileLocation(2, 5), 'watergirl')
 diamond.create(tiles.getTileLocation(11, 2), 'fireboy')
 diamond.create(tiles.getTileLocation(23, 4), 'watergirl')
 
-const yellowMover = new mover.Mover('yellow', 'lever', 20,  11, 12)
+block.create(
+    tiles.getTileLocation(23, 9),
+    [tiles.getTileLocation(5, 9)],
+    [tiles.getTileLocation(30, 8), tiles.getTileLocation(20, 10)]
+)
+
+const yellowMover = new mover.Mover('yellow', 20,  11, 12)
 yellowMover.createPlatform(tiles.getTileLocation(3, 15))
 yellowMover.createLever(tiles.getTileLocation(7, 19))
 
-const purpleMover = new mover.Mover('purple', 'button', 20, 13, 14)
+const purpleMover = new mover.Mover('purple', 20, 13, 14)
 purpleMover.createPlatform(tiles.getTileLocation(36, 12))
 purpleMover.createButton(tiles.getTileLocation(10, 14))
 purpleMover.createButton(tiles.getTileLocation(30, 10))
@@ -399,13 +479,13 @@ const fireboy = player.createFireboy(tiles.getTileLocation(2, 26))
 const watergirl = player.createWatergirl(tiles.getTileLocation(2, 22))
 
 // Zoom into level
-Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
-pause(750)
-Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
-pause(500)
-if (!controller.A.isPressed()) {
-    Zoom.zoomToOffset(3, 0, screen.height, 1250)
-}
+// Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
+// pause(750)
+// Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
+// pause(500)
+// if (!controller.A.isPressed()) {
+//     Zoom.zoomToOffset(3, 0, screen.height, 1250)
+// }
 
 // Music
 music.stopAllSounds()
