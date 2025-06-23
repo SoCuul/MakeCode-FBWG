@@ -30,15 +30,18 @@ namespace timer {
     const frameSprite = sprites.create(assets.image`timer_frame`)
     frameSprite.setScale(1.675)
     frameSprite.setPosition(screen.width / 2, 28)
+    frameSprite.setFlag(SpriteFlag.Invisible, true)
 
     const timerSpriteOutline = fancyText.create('00:00', null, 3, fancyText.gothic_large)
     const timerSprite = fancyText.create('00:00', null, 10, fancyText.gothic_large)
 
     timerSprite.setPosition(screen.width / 2, 20)
+    timerSprite.setFlag(SpriteFlag.Invisible, true)
     
-    timerSpriteOutline.setPosition(timerSprite.x, timerSprite.y)
-    timerSpriteOutline.x += 2
-    timerSpriteOutline.y += 2
+    timerSpriteOutline.setPosition(timerSprite.x + 2, timerSprite.y + 2)
+    // timerSpriteOutline.x += 2
+    // timerSpriteOutline.y += 2
+    timerSpriteOutline.setFlag(SpriteFlag.Invisible, true)
 
     let startedTimer = false
     let timerOffset = 0
@@ -49,6 +52,10 @@ namespace timer {
         if (!startedTimer) {
             startedTimer = true
             timerOffset = game.runtime()
+
+            frameSprite.setFlag(SpriteFlag.Invisible, false)
+            timerSprite.setFlag(SpriteFlag.Invisible, false)
+            timerSpriteOutline.setFlag(SpriteFlag.Invisible, false)
         }
 
         const secs = (game.runtime() - timerOffset) / 1000
@@ -157,11 +164,25 @@ namespace player {
         // Remove guide text
         if (sprite.kind() === SpriteKind.Watergirl) {
             sprites.allOfKind(SpriteKind.WatergirlGuideText)
-                .forEach(sprite => sprite.destroy(effects.coolRadial, 175))
+                .forEach((sprite, index) => {
+                    if (index === 0) {
+                        sprite.destroy(effects.warmRadial, 175)
+                    }
+                    else {
+                        setTimeout(() => sprite.destroy(), 175)
+                    }
+                })
         }
         else if (sprite.kind() === SpriteKind.Fireboy) {
             sprites.allOfKind(SpriteKind.FireboyGuideText)
-                .forEach(sprite => sprite.destroy(effects.warmRadial, 175))
+                .forEach((sprite, index) => {
+                    if (index === 0) {
+                        sprite.destroy(effects.warmRadial, 175)
+                    }
+                    else {
+                        setTimeout(() => sprite.destroy(), 175)
+                    }
+                })
         }
 
         // Check if both sprites have moved so far
@@ -588,10 +609,6 @@ namespace door {
             // Continue ongoing animation
             if (overlap === this.opened || this.animating) return
 
-            console.log(overlap)
-            this.opened = overlap
-            this.animating = true
-
             let frames: Image[]
 
             switch (this.type) {
@@ -605,6 +622,9 @@ namespace door {
             }
 
             if (!overlap) frames.reverse()
+            
+            this.opened = overlap
+            this.animating = true
 
             animation.stopAnimation(animation.AnimationTypes.ImageAnimation, this.doorSprite)
             animation.runImageAnimation(this.doorSprite, frames, 55)
@@ -752,12 +772,22 @@ new door.Door(tiles.getTileLocation(36, 4), 'watergirl')
 
 const fireboy = player.createFireboy(tiles.getTileLocation(2, 26))
 const watergirl = player.createWatergirl(tiles.getTileLocation(2, 22))
-const playerSprites = [fireboy, watergirl]
+const playerSprites = [watergirl, fireboy]
 
 // Music
-music.stopAllSounds()
-music.setVolume(0)
-music.play(music.createSong(assets.song`levelTheme`), music.PlaybackMode.LoopingInBackground)
+control.runInParallel(() => {   
+    music.stopAllSounds()
+    music.setVolume(0)
+    pause(600)
+
+    // Fade in
+    for (let i = 40; i <= 200; i += 40) {
+        music.stopAllSounds()
+        music.setVolume(i)
+        music.play(music.createSong(assets.song`levelTheme`), music.PlaybackMode.LoopingInBackground)
+        pause(1000)
+    }
+})
 
 controller.B.onEvent(ControllerButtonEvent.Pressed, () => {
     if (music.volume() > 0) {
@@ -771,11 +801,11 @@ controller.B.onEvent(ControllerButtonEvent.Pressed, () => {
 })
 
 // Zoom into level
-// Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
-// pause(750)
-// Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
-// pause(500)
+Zoom.zoomToOffset(0.9, screen.width / 2, screen.height / 2)
+pause(750)
+Zoom.zoomToOffset(1, screen.width / 2, screen.height / 2, 750)
 if (!controller.A.isPressed()) {
-    Zoom.zoomToOffset(3, 0, screen.height, 1250)
+    pause(500)
+    Zoom.zoomToOffset(3, 0, screen.height, 2750)
 }
 player.movementEnabled = true
